@@ -9,11 +9,14 @@ import (
 )
 
 type Client interface {
-	AddUser(string, string) Client
+	AddUser(string, string, int) Client
+	ChangeUserMode(string, int) Client
+	ChangeUserPwd(string, string) Client
+	SetUserRights(string, string, int) Client
 }
 
 type client struct {
-	userInfo   map[string]string
+	userInfo   map[string]*user
 	fs         *webdav.Handler
 	pathPrefix string
 	mode       int
@@ -27,7 +30,7 @@ func (server *webdavServer) NewClient(pathPrefix, filePath string) Client {
 		FileSystem: webdav.Dir(filePath),
 		LockSystem: webdav.NewMemLS(),
 	}
-	client := client{pathPrefix: pathPrefix, fs: fs, engine: server.ginengine, userInfo: make(map[string]string), mode: O_RDWR}
+	client := client{pathPrefix: pathPrefix, fs: fs, engine: server.ginengine, userInfo: make(map[string]*user), mode: O_RDWR}
 	server.ginengine.Any(fmt.Sprintf("%s/*webdav", pathPrefix), client.handleWebdav())
 	return &client
 }
@@ -39,26 +42,25 @@ func (server *webdavServer) NewClientWithMemFS(pathPrefix string) Client {
 		FileSystem: webdav.NewMemFS(),
 		LockSystem: webdav.NewMemLS(),
 	}
-	client := client{pathPrefix: pathPrefix, fs: fs, engine: server.ginengine, userInfo: make(map[string]string), mode: O_RDWR}
+	client := client{pathPrefix: pathPrefix, fs: fs, engine: server.ginengine, userInfo: make(map[string]*user), mode: O_RDWR}
 	server.ginengine.Any(fmt.Sprintf("%s/*webdav", pathPrefix), client.handleWebdav())
 	return &client
 }
 
 func (client *client) handleWebdav() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if len(client.userInfo) == 0 {
-			return
-		}
-		user, pwd, ok := ctx.Request.BasicAuth()
-		if !ok {
-			ctx.Writer.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-			ctx.Writer.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-		if v, ok := client.userInfo[user]; !ok || v != pwd {
-			ctx.Writer.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-			ctx.Writer.WriteHeader(http.StatusUnauthorized)
-			return
+		if len(client.userInfo) != 0 {
+			user, pwd, ok := ctx.Request.BasicAuth()
+			if !ok {
+				ctx.Writer.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+				ctx.Writer.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			if v, ok := client.userInfo[user]; !ok || v.password != pwd {
+				ctx.Writer.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+				ctx.Writer.WriteHeader(http.StatusUnauthorized)
+				return
+			}
 		}
 		switch client.mode {
 		case O_RDWR:
@@ -71,25 +73,9 @@ func (client *client) handleWebdav() gin.HandlerFunc {
 		default:
 			return
 		}
-		// ctx.Request.URL.Path = ctx.Params.ByName("webdav")
 		if ctx.Request.Method == "GET" && client.handleDirList(client.fs.FileSystem, ctx) {
 			return
 		}
 		client.fs.ServeHTTP(ctx.Writer, ctx.Request)
 	}
-}
-
-func (client *client) AddUser(username, password string) Client {
-	client.userInfo[username] = password
-	return client
-}
-
-func (server *webdavSingleServer) newClient(filePath string) Client {
-	fs := &webdav.Handler{
-		FileSystem: webdav.Dir(filePath),
-		LockSystem: webdav.NewMemLS(),
-	}
-	client := client{fs: fs, engine: server.ginengine, userInfo: make(map[string]string), mode: O_RDWR}
-	server.ginengine.Any("/*webdav", client.handleWebdav())
-	return &client
 }

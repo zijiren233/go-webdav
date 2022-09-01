@@ -69,23 +69,27 @@ min-width: 20em;
 </tr>
 <tr><th colspan="3"><hr></th></tr>
 <tr>`)
-	fmt.Fprintf(data, "<td><a href=\"%s\">Home Dir</a></td>\n", client.pathPrefix)
+	if client.pathPrefix == "" {
+		fmt.Fprintf(data, `<td><a href="..">Home Dir</a></td>`)
+	} else {
+		fmt.Fprintf(data, "<td><a href=\"%s\">Home Dir</a></td>\n", client.pathPrefix)
+	}
 	fmt.Fprintln(data, `<td>&nbsp;</td>
-<td class="mono" align="right">[DIR]    </td>
+<td class="mono" align="right">[DIR]</td>
 </tr>`)
 	if path != "/" {
 		fmt.Fprintln(data, `<td><a href="..">Pre Dir</a></td>
 <td>&nbsp;</td>
-<td class="mono" align="right">[DIR]    </td>
+<td class="mono" align="right">[DIR]</td>
 </tr>`)
 	}
 	for _, d := range dirs {
 		name := d.Name()
 		if d.IsDir() {
 			name += "/"
-			fmt.Fprintf(data, "<tr><td><a href=\"%s\" >%s</a></td><td class=\"mono\">%s</td><td class=\"mono\" align=\"right\">[DIR]    </td></tr>", name, name, d.ModTime().Format("2006/1/2 15:04:05"))
+			fmt.Fprintf(data, "<tr><td><a href=\"%s\" >%s</a></td><td class=\"mono\">%s</td><td class=\"mono\" align=\"right\">[DIR]</td></tr>", name, name, d.ModTime().Format("2006/1/2 15:04:05"))
 		} else {
-			fmt.Fprintf(data, "<tr><td><a href=\"%s\" >%s</a></td><td class=\"mono\">%s</td><td class=\"mono\" align=\"right\">%s    </td></tr>", name, name, d.ModTime().Format("2006/1/2 15:04:05"), getsize(d.Size()))
+			fmt.Fprintf(data, "<tr><td><a href=\"%s\" >%s</a></td><td class=\"mono\">%s</td><td class=\"mono\" align=\"right\">%s</td></tr>", name, name, d.ModTime().Format("2006/1/2 15:04:05"), getsize(d.Size()))
 		}
 	}
 	return data
