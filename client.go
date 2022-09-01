@@ -2,7 +2,6 @@ package gowebdav
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/webdav"
@@ -18,15 +17,14 @@ type Client interface {
 	LS() webdav.LockSystem
 
 	// User
-	userfunc
+	usersfunc
 }
 
 type client struct {
 	readOnly bool
-	*users
+	usersfunc
 	fs         *webdav.Handler
 	pathPrefix string
-	engine     *gin.Engine
 }
 
 // All client path prefix levels must match
@@ -36,7 +34,7 @@ func (server *webdavServer) NewClient(pathPrefix, filePath string) Client {
 		FileSystem: webdav.Dir(filePath),
 		LockSystem: webdav.NewMemLS(),
 	}
-	client := client{pathPrefix: pathPrefix, fs: fs, engine: server.ginengine, users: &users{usermap: make(map[string]*user), lock: &sync.RWMutex{}}}
+	client := client{pathPrefix: pathPrefix, fs: fs, usersfunc: newusers()}
 	server.ginengine.Any(fmt.Sprintf("%s/*webdav", pathPrefix), client.handleWebdav())
 	return &client
 }
@@ -48,7 +46,7 @@ func (server *webdavServer) NewClientWithMemFS(pathPrefix string) Client {
 		FileSystem: webdav.NewMemFS(),
 		LockSystem: webdav.NewMemLS(),
 	}
-	client := client{pathPrefix: pathPrefix, fs: fs, engine: server.ginengine, users: &users{usermap: make(map[string]*user), lock: &sync.RWMutex{}}}
+	client := client{pathPrefix: pathPrefix, fs: fs, usersfunc: newusers()}
 	server.ginengine.Any(fmt.Sprintf("%s/*webdav", pathPrefix), client.handleWebdav())
 	return &client
 }
@@ -77,33 +75,20 @@ func (client *client) LS() webdav.LockSystem {
 
 func (client *client) handleWebdav() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if len(client.users.usermap) != 0 {
+		if client.UserNum() != 0 {
 			username, pwd, ok := ctx.Request.BasicAuth()
 			if !ok {
 				authErr(ctx)
 				return
 			}
-			client.users.lock.RLock()
-			v, ok := client.usermap[username]
-			client.users.lock.RUnlock()
-			if !ok {
+			user, ok := client.FindUser(username)
+			if !ok || !user.comparePassword(pwd) {
 				authErr(ctx)
 				return
-			} else {
-				v.lock.RLock()
-				if v.password != pwd {
-					v.lock.RUnlock()
-					authErr(ctx)
-					return
-				}
-				v.lock.RUnlock()
 			}
-			v.lock.RLock()
-			if v.mode == O_READONLY && readonle(ctx.Request.Method) {
-				v.lock.RUnlock()
+			if user.Mode() == O_READONLY && readonle(ctx.Request.Method) {
 				return
 			}
-			v.lock.RUnlock()
 		} else if client.readOnly && readonle(ctx.Request.Method) {
 			return
 		}

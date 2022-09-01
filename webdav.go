@@ -9,7 +9,7 @@ import (
 type Server interface {
 	NewClient(pathPrefix, filePath string) Client
 	NewClientWithMemFS(pathPrefix string) Client
-	Run(addr ...string)
+	Run(addr ...string) error
 	GetGinEngine() *gin.Engine
 }
 
@@ -36,9 +36,9 @@ func NewWebdavWithGin(engine *gin.Engine) Server {
 	return &webdavserver
 }
 
-func (webdavServer *webdavServer) Run(addr ...string) {
+func (webdavServer *webdavServer) Run(addr ...string) error {
 	fmt.Printf("Webdav run on port%s\n", resolveAddress(addr))
-	webdavServer.ginengine.Run(addr...)
+	return webdavServer.ginengine.Run(addr...)
 }
 
 func (webdavServer *webdavServer) GetGinEngine() *gin.Engine {

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
-	"log"
 	"net/http"
 	"os"
 
@@ -19,13 +18,13 @@ func (client *client) handleDirList(fs webdav.FileSystem, ctx *gin.Context) bool
 		return false
 	}
 	defer f.Close()
-	if fi, _ := f.Stat(); fi != nil && !fi.IsDir() {
+	if fi, err := f.Stat(); err != nil || fi == nil || !fi.IsDir() {
 		return false
 	}
 	dirs, err := f.Readdir(-1)
 	if err != nil {
-		log.Print(ctx, "Error reading directory", http.StatusInternalServerError)
-		return false
+		ctx.Writer.WriteHeader(http.StatusInternalServerError)
+		return true
 	}
 	ctx.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	ctx.Writer.Write(client.generateWeb(dirs, filePath).Bytes())
@@ -33,7 +32,7 @@ func (client *client) handleDirList(fs webdav.FileSystem, ctx *gin.Context) bool
 }
 
 func (client *client) generateWeb(dirs []fs.FileInfo, path string) *bytes.Buffer {
-	data := bytes.NewBuffer(nil)
+	data := bytes.NewBuffer(make([]byte, 4096))
 	fmt.Fprintln(data, `<html><head><meta name=\"referrer\" content=\"no-referrer\" />`)
 	fmt.Fprintf(data, "<title>Index of %s</title>\n", path)
 	fmt.Fprintln(data, `<style>table {border-collapse: separate;border-spacing: 1.5em 0.25em;}h1 {padding-left: 0.3em;}a {text-decoration: none;color: blue;}.left {text-align: left;}.mono {font-family: monospace;}.mw20 {min-width: 20em;}</style></head><body>`)

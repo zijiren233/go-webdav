@@ -5,87 +5,63 @@ import (
 )
 
 type userfunc interface {
-	AddUser(username, password string, mode int) *user
-	DelUser(username, password string, mode int)
-	ChangeUserMode(username string, mode int)
-	ChangeUserPwd(username, password string)
-	SetUserRights(username, password string, mode int)
-}
+	ChangeName(username string)
+	ChangeMode(mode mode)
+	ChangePwd(password string)
+	SetInfo(username, password string, mode mode)
+	Mode() mode
 
-type users struct {
-	usermap map[string]*user
-
-	lock *sync.RWMutex
+	comparePassword(password string) bool
 }
 
 type user struct {
 	name, password string
-	mode           int
+	mode           mode
 
 	lock *sync.RWMutex
 }
 
+type mode = uint
+
 const (
-	O_RDWR = iota
+	O_RDWR mode = iota
 	O_READONLY
 )
 
-func (u *users) AddUser(username, password string, mode int) *user {
+func (u *user) comparePassword(password string) bool {
 	u.lock.RLock()
-	_, ok := u.usermap[username]
-	u.lock.RUnlock()
-	if ok {
-		return nil
-	}
-	newuser := user{name: username, password: password, mode: mode, lock: &sync.RWMutex{}}
-	u.lock.Lock()
-	u.usermap[username] = &newuser
-	u.lock.Unlock()
-	return &newuser
+	defer u.lock.RUnlock()
+	return u.password == password
 }
 
-func (u *users) DelUser(username, password string, mode int) {
+func (u *user) Mode() mode {
 	u.lock.RLock()
-	_, ok := u.usermap[username]
-	u.lock.RUnlock()
-	if !ok {
-		return
-	}
+	defer u.lock.RUnlock()
+	return u.mode
+}
+
+func (u *user) ChangeName(username string) {
 	u.lock.Lock()
-	delete(u.usermap, username)
+	u.name = username
 	u.lock.Unlock()
 }
 
-func (u *users) ChangeUserMode(username string, mode int) {
-	u.lock.RLock()
-	v, ok := u.usermap[username]
-	u.lock.RUnlock()
-	if ok {
-		v.lock.Lock()
-		v.mode = mode
-		v.lock.RUnlock()
-	}
+func (u *user) ChangeMode(mode mode) {
+	u.lock.Lock()
+	u.mode = mode
+	u.lock.Unlock()
 }
 
-func (u *users) ChangeUserPwd(username, password string) {
-	u.lock.RLock()
-	v, ok := u.usermap[username]
-	u.lock.RUnlock()
-	if ok {
-		v.lock.Lock()
-		v.password = password
-		v.lock.RUnlock()
-	}
+func (u *user) ChangePwd(password string) {
+	u.lock.Lock()
+	u.password = password
+	u.lock.Unlock()
 }
 
-func (u *users) SetUserRights(username, password string, mode int) {
-	u.lock.RLock()
-	v, ok := u.usermap[username]
-	u.lock.RUnlock()
-	if ok {
-		v.lock.Lock()
-		v.password = password
-		v.mode = mode
-		v.lock.RUnlock()
-	}
+func (u *user) SetInfo(username, password string, mode mode) {
+	u.lock.Lock()
+	u.name = username
+	u.password = password
+	u.mode = mode
+	u.lock.Unlock()
 }
