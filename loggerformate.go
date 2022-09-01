@@ -41,7 +41,7 @@ var handlelogger = func(param gin.LogFormatterParams) string {
 	)
 }
 
-func Formatter() gin.HandlerFunc {
+func Logger() gin.HandlerFunc {
 	return gin.LoggerWithFormatter(handlelogger)
 }
 

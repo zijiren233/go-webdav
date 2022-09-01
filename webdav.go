@@ -24,7 +24,7 @@ func NewWebdav() Server {
 
 	webdavserver.ginengine = gin.New()
 
-	webdavserver.ginengine.Use(Formatter(), gin.Recovery())
+	webdavserver.ginengine.Use(Logger(), gin.Recovery())
 
 	return &webdavserver
 }
