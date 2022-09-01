@@ -8,6 +8,7 @@ import (
 
 type Server interface {
 	NewClient(pathPrefix, filePath string) Client
+	NewClientWithMemFS(pathPrefix string) Client
 	Run(addr ...string)
 }
 

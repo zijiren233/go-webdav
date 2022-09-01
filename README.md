@@ -2,8 +2,8 @@
 
 ```go
 func main() {
-	ser := gowebdav.NewSingleWebdav(".")
-	ser.SetAuth("admin", "admin")
+	ser := gowebdav.NewWebdav()
+	ser.NewClient("", ".")
 	ser.Run(":8080")
 }
 ```
@@ -11,9 +11,9 @@ func main() {
 ```go
 func main() {
 	ser := gowebdav.NewWebdav()
-	client1 := ser.NewClient("/prefix", ".")
-	client1.SetAuth("admin", "admin")
-	ser.NewClient("/prefix2", "../")
-	ser.Run()
+	ser.NewClient("/prefix1", ".")
+	c := ser.NewClient("/prefix2", "..")
+	c.AddUser("admin", "admin", gowebdav.O_RDWR)
+	ser.Run(":8080")
 }
 ```

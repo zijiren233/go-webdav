@@ -9,10 +9,14 @@ import (
 )
 
 type Client interface {
-	AddUser(string, string, int) Client
-	ChangeUserMode(string, int) Client
-	ChangeUserPwd(string, string) Client
-	SetUserRights(string, string, int) Client
+	// FS
+	GetFS() *webdav.Handler
+
+	// User
+	AddUser(username, password string, mode int) Client
+	ChangeUserMode(username string, mode int) Client
+	ChangeUserPwd(username, password string) Client
+	SetUserRights(username, password string, mode int) Client
 }
 
 type client struct {
@@ -45,6 +49,10 @@ func (server *webdavServer) NewClientWithMemFS(pathPrefix string) Client {
 	client := client{pathPrefix: pathPrefix, fs: fs, engine: server.ginengine, userInfo: make(map[string]*user), mode: O_RDWR}
 	server.ginengine.Any(fmt.Sprintf("%s/*webdav", pathPrefix), client.handleWebdav())
 	return &client
+}
+
+func (client *client) GetFS() *webdav.Handler {
+	return client.fs
 }
 
 func (client *client) handleWebdav() gin.HandlerFunc {
