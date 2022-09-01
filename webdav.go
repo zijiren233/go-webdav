@@ -29,7 +29,6 @@ func NewWebdav() Server {
 
 func NewWebdavWithGin(engine *gin.Engine) Server {
 	webdavserver := webdavServer{}
-	gin.SetMode(gin.ReleaseMode)
 
 	webdavserver.ginengine = engine
 
