@@ -46,11 +46,10 @@ func readonle(ctx *gin.Context) {
 }
 
 func path2index(path string) string {
-	fmt.Printf("path: %v\n", path)
 	s := strings.Split(path, "/")
 	var tmp string
 	for k, v := range s[1 : len(s)-1] {
-		tmp += fmt.Sprintf("<a href = \"%s\">%s</a>/", strings.Repeat("../", len(s)-3-k), v)
+		tmp += fmt.Sprintf("/<a href = \"%s\">%s</a>", strings.Repeat("../", len(s)-3-k), v)
 	}
 	return tmp
 }
