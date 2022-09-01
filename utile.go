@@ -2,6 +2,7 @@ package gowebdav
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 
@@ -37,11 +38,12 @@ func resolveAddress(addr []string) string {
 	}
 }
 
-func readonle(ctx *gin.Context) {
-	switch ctx.Request.Method {
+func readonle(Method string) bool {
+	switch Method {
 	case "GET", "HEAD", "POST":
+		return false
 	default:
-		ctx.Abort()
+		return true
 	}
 }
 
@@ -52,4 +54,9 @@ func path2index(path string) string {
 		tmp += fmt.Sprintf("/<a href = \"%s\">%s</a>", strings.Repeat("../", len(s)-3-k), v)
 	}
 	return tmp
+}
+
+func authErr(ctx *gin.Context) {
+	ctx.Writer.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+	ctx.Writer.WriteHeader(http.StatusUnauthorized)
 }

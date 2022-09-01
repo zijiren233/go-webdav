@@ -1,14 +1,28 @@
 package gowebdav
 
 import (
-	"net/http"
-
-	"github.com/gin-gonic/gin"
+	"sync"
 )
+
+type userfunc interface {
+	AddUser(username, password string, mode int) *user
+	DelUser(username, password string, mode int)
+	ChangeUserMode(username string, mode int)
+	ChangeUserPwd(username, password string)
+	SetUserRights(username, password string, mode int)
+}
+
+type users struct {
+	usermap map[string]*user
+
+	lock *sync.RWMutex
+}
 
 type user struct {
 	name, password string
 	mode           int
+
+	lock *sync.RWMutex
 }
 
 const (
@@ -16,61 +30,62 @@ const (
 	O_READONLY
 )
 
-func (client *client) AddUser(username, password string, mode int) Client {
-	client.userInfo[username] = &user{name: username, password: password, mode: mode}
-	return client
-}
-
-func (client *client) ChangeUserMode(username string, mode int) Client {
-	if v, ok := client.userInfo[username]; ok {
-		v.mode = mode
+func (u *users) AddUser(username, password string, mode int) *user {
+	u.lock.RLock()
+	_, ok := u.usermap[username]
+	u.lock.RUnlock()
+	if ok {
+		return nil
 	}
-	return client
+	newuser := user{name: username, password: password, mode: mode, lock: &sync.RWMutex{}}
+	u.lock.Lock()
+	u.usermap[username] = &newuser
+	u.lock.Unlock()
+	return &newuser
 }
 
-func (client *client) ChangeUserPwd(username, password string) Client {
-	if v, ok := client.userInfo[username]; ok {
-		v.password = password
-	}
-	return client
-}
-
-func (client *client) SetUserRights(username, password string, mode int) Client {
-	if v, ok := client.userInfo[username]; ok {
-		v.password = password
-		v.mode = mode
-	}
-	return client
-}
-
-func (client *client) userAuth(ctx *gin.Context) {
-	if len(client.userInfo) != 0 {
-		user, pwd, ok := ctx.Request.BasicAuth()
-		if !ok {
-			ctx.Writer.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-			ctx.Writer.WriteHeader(http.StatusUnauthorized)
-			ctx.Abort()
-		}
-		v, ok := client.userInfo[user]
-		if !ok || v.password != pwd {
-			ctx.Writer.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
-			ctx.Writer.WriteHeader(http.StatusUnauthorized)
-			ctx.Abort()
-		}
-		v.userAuthentication(ctx)
+func (u *users) DelUser(username, password string, mode int) {
+	u.lock.RLock()
+	_, ok := u.usermap[username]
+	u.lock.RUnlock()
+	if !ok {
 		return
 	}
-	if client.readOnly {
-		readonle(ctx)
+	u.lock.Lock()
+	delete(u.usermap, username)
+	u.lock.Unlock()
+}
+
+func (u *users) ChangeUserMode(username string, mode int) {
+	u.lock.RLock()
+	v, ok := u.usermap[username]
+	u.lock.RUnlock()
+	if ok {
+		v.lock.Lock()
+		v.mode = mode
+		v.lock.RUnlock()
 	}
 }
 
-func (user *user) userAuthentication(ctx *gin.Context) {
-	switch user.mode {
-	case O_RDWR:
-	case O_READONLY:
-		readonle(ctx)
-	default:
-		ctx.Abort()
+func (u *users) ChangeUserPwd(username, password string) {
+	u.lock.RLock()
+	v, ok := u.usermap[username]
+	u.lock.RUnlock()
+	if ok {
+		v.lock.Lock()
+		v.password = password
+		v.lock.RUnlock()
+	}
+}
+
+func (u *users) SetUserRights(username, password string, mode int) {
+	u.lock.RLock()
+	v, ok := u.usermap[username]
+	u.lock.RUnlock()
+	if ok {
+		v.lock.Lock()
+		v.password = password
+		v.mode = mode
+		v.lock.RUnlock()
 	}
 }

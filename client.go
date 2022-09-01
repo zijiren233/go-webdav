@@ -2,6 +2,7 @@ package gowebdav
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/webdav"
@@ -17,15 +18,12 @@ type Client interface {
 	LS() webdav.LockSystem
 
 	// User
-	AddUser(username, password string, mode int) Client
-	ChangeUserMode(username string, mode int) Client
-	ChangeUserPwd(username, password string) Client
-	SetUserRights(username, password string, mode int) Client
+	userfunc
 }
 
 type client struct {
-	readOnly   bool
-	userInfo   map[string]*user
+	readOnly bool
+	*users
 	fs         *webdav.Handler
 	pathPrefix string
 	engine     *gin.Engine
@@ -38,7 +36,7 @@ func (server *webdavServer) NewClient(pathPrefix, filePath string) Client {
 		FileSystem: webdav.Dir(filePath),
 		LockSystem: webdav.NewMemLS(),
 	}
-	client := client{pathPrefix: pathPrefix, fs: fs, engine: server.ginengine, userInfo: make(map[string]*user)}
+	client := client{pathPrefix: pathPrefix, fs: fs, engine: server.ginengine, users: &users{usermap: make(map[string]*user), lock: &sync.RWMutex{}}}
 	server.ginengine.Any(fmt.Sprintf("%s/*webdav", pathPrefix), client.handleWebdav())
 	return &client
 }
@@ -50,19 +48,19 @@ func (server *webdavServer) NewClientWithMemFS(pathPrefix string) Client {
 		FileSystem: webdav.NewMemFS(),
 		LockSystem: webdav.NewMemLS(),
 	}
-	client := client{pathPrefix: pathPrefix, fs: fs, engine: server.ginengine, userInfo: make(map[string]*user)}
+	client := client{pathPrefix: pathPrefix, fs: fs, engine: server.ginengine, users: &users{usermap: make(map[string]*user), lock: &sync.RWMutex{}}}
 	server.ginengine.Any(fmt.Sprintf("%s/*webdav", pathPrefix), client.handleWebdav())
 	return &client
 }
 
-// Users are authenticated individually without using global permissions
+// It only takes effect if no user is set
 func (client *client) GlobalReadOnly() {
 	if !client.readOnly {
 		client.readOnly = true
 	}
 }
 
-// Users are authenticated individually without using global permissions
+// It only takes effect if no user is set
 func (client *client) UnSetReadOnly() {
 	if client.readOnly {
 		client.readOnly = false
@@ -79,7 +77,36 @@ func (client *client) LS() webdav.LockSystem {
 
 func (client *client) handleWebdav() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		client.userAuth(ctx)
+		if len(client.users.usermap) != 0 {
+			username, pwd, ok := ctx.Request.BasicAuth()
+			if !ok {
+				authErr(ctx)
+				return
+			}
+			client.users.lock.RLock()
+			v, ok := client.usermap[username]
+			client.users.lock.RUnlock()
+			if !ok {
+				authErr(ctx)
+				return
+			} else {
+				v.lock.RLock()
+				if v.password != pwd {
+					v.lock.RUnlock()
+					authErr(ctx)
+					return
+				}
+				v.lock.RUnlock()
+			}
+			v.lock.RLock()
+			if v.mode == O_READONLY && readonle(ctx.Request.Method) {
+				v.lock.RUnlock()
+				return
+			}
+			v.lock.RUnlock()
+		} else if client.readOnly && readonle(ctx.Request.Method) {
+			return
+		}
 		if ctx.Request.Method == "GET" && client.handleDirList(client.fs.FileSystem, ctx) {
 			return
 		}
