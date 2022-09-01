@@ -9,7 +9,7 @@ import (
 )
 
 type Client interface {
-	SetAuth(string, string) Client
+	AddUser(string, string) Client
 }
 
 type client struct {
@@ -20,9 +20,23 @@ type client struct {
 	engine     *gin.Engine
 }
 
+// All client path prefix levels must match
 func (server *webdavServer) NewClient(pathPrefix, filePath string) Client {
 	fs := &webdav.Handler{
+		Prefix:     pathPrefix,
 		FileSystem: webdav.Dir(filePath),
+		LockSystem: webdav.NewMemLS(),
+	}
+	client := client{pathPrefix: pathPrefix, fs: fs, engine: server.ginengine, userInfo: make(map[string]string), mode: O_RDWR}
+	server.ginengine.Any(fmt.Sprintf("%s/*webdav", pathPrefix), client.handleWebdav())
+	return &client
+}
+
+// All client path prefix levels must match
+func (server *webdavServer) NewClientWithMemFS(pathPrefix string) Client {
+	fs := &webdav.Handler{
+		Prefix:     pathPrefix,
+		FileSystem: webdav.NewMemFS(),
 		LockSystem: webdav.NewMemLS(),
 	}
 	client := client{pathPrefix: pathPrefix, fs: fs, engine: server.ginengine, userInfo: make(map[string]string), mode: O_RDWR}
@@ -57,15 +71,15 @@ func (client *client) handleWebdav() gin.HandlerFunc {
 		default:
 			return
 		}
-		ctx.Request.URL.Path = ctx.Params.ByName("webdav")
-		if ctx.Request.Method == "GET" && handleDirList(client.fs.FileSystem, ctx) {
+		// ctx.Request.URL.Path = ctx.Params.ByName("webdav")
+		if ctx.Request.Method == "GET" && client.handleDirList(client.fs.FileSystem, ctx) {
 			return
 		}
 		client.fs.ServeHTTP(ctx.Writer, ctx.Request)
 	}
 }
 
-func (client *client) SetAuth(username, password string) Client {
+func (client *client) AddUser(username, password string) Client {
 	client.userInfo[username] = password
 	return client
 }

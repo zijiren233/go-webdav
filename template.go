@@ -12,8 +12,9 @@ import (
 	"golang.org/x/net/webdav"
 )
 
-func handleDirList(fs webdav.FileSystem, ctx *gin.Context) bool {
-	f, err := fs.OpenFile(ctx, ctx.Request.URL.Path, os.O_RDONLY, 0)
+func (client *client) handleDirList(fs webdav.FileSystem, ctx *gin.Context) bool {
+	filePath := ctx.Params.ByName("webdav")
+	f, err := fs.OpenFile(ctx, filePath, os.O_RDONLY, 0)
 	if err != nil {
 		return false
 	}
@@ -27,11 +28,11 @@ func handleDirList(fs webdav.FileSystem, ctx *gin.Context) bool {
 		return false
 	}
 	ctx.Writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	ctx.Writer.Write(generateWeb(dirs, ctx.Request.URL.Path).Bytes())
+	ctx.Writer.Write(client.generateWeb(dirs, filePath).Bytes())
 	return true
 }
 
-func generateWeb(dirs []fs.FileInfo, path string) *bytes.Buffer {
+func (client *client) generateWeb(dirs []fs.FileInfo, path string) *bytes.Buffer {
 	data := bytes.NewBuffer(nil)
 	fmt.Fprintln(data, `<html><head>
 <meta name=\"referrer\" content=\"no-referrer\" />`)
@@ -67,11 +68,17 @@ min-width: 20em;
 <th>Size</th>
 </tr>
 <tr><th colspan="3"><hr></th></tr>
-<tr>
-<td><a href="..">Parent Directory</a></td>
+<tr>`)
+	fmt.Fprintf(data, "<td><a href=\"%s\">Home Dir</a></td>\n", client.pathPrefix)
+	fmt.Fprintln(data, `<td>&nbsp;</td>
+<td class="mono" align="right">[DIR]    </td>
+</tr>`)
+	if path != "/" {
+		fmt.Fprintln(data, `<td><a href="..">Pre Dir</a></td>
 <td>&nbsp;</td>
 <td class="mono" align="right">[DIR]    </td>
 </tr>`)
+	}
 	for _, d := range dirs {
 		name := d.Name()
 		if d.IsDir() {
