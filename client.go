@@ -10,7 +10,8 @@ import (
 
 type Client interface {
 	// FS
-	GetFS() *webdav.Handler
+	GetFS() webdav.FileSystem
+	GetLS() webdav.LockSystem
 
 	// User
 	AddUser(username, password string, mode int) Client
@@ -51,8 +52,12 @@ func (server *webdavServer) NewClientWithMemFS(pathPrefix string) Client {
 	return &client
 }
 
-func (client *client) GetFS() *webdav.Handler {
-	return client.fs
+func (client *client) GetFS() webdav.FileSystem {
+	return client.fs.FileSystem
+}
+
+func (client *client) GetLS() webdav.LockSystem {
+	return client.fs.LockSystem
 }
 
 func (client *client) handleWebdav() gin.HandlerFunc {
