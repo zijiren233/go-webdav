@@ -7,6 +7,12 @@ import (
 	"golang.org/x/net/webdav"
 )
 
+var (
+	missingMethods = []string{
+		"PROPFIND", "PROPPATCH", "MKCOL", "COPY", "MOVE", "LOCK", "UNLOCK",
+	}
+)
+
 type Client interface {
 	// Global permissions
 	GlobalReadOnly()
@@ -35,7 +41,7 @@ func (server *webdavServer) NewClient(pathPrefix, filePath string) Client {
 		LockSystem: webdav.NewMemLS(),
 	}
 	client := client{pathPrefix: pathPrefix, fs: fs, usersfunc: newusers()}
-	server.ginengine.Any(fmt.Sprintf("%s/*webdav", pathPrefix), client.handleWebdav())
+	client.addMethod(server.ginengine, pathPrefix)
 	return &client
 }
 
@@ -47,8 +53,16 @@ func (server *webdavServer) NewClientWithMemFS(pathPrefix string) Client {
 		LockSystem: webdav.NewMemLS(),
 	}
 	client := client{pathPrefix: pathPrefix, fs: fs, usersfunc: newusers()}
-	server.ginengine.Any(fmt.Sprintf("%s/*webdav", pathPrefix), client.handleWebdav())
+	client.addMethod(server.ginengine, pathPrefix)
 	return &client
+}
+
+func (client *client) addMethod(ginengine *gin.Engine, pathPrefix string) {
+	relativePath := fmt.Sprintf("%s/*webdav", pathPrefix)
+	ginengine.Any(relativePath, client.handleWebdav())
+	for _, v := range missingMethods {
+		ginengine.Handle(v, relativePath, client.handleWebdav())
+	}
 }
 
 // It only takes effect if no user is set
