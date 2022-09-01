@@ -3,6 +3,8 @@ package gowebdav
 import (
 	"fmt"
 	"os"
+
+	"github.com/gin-gonic/gin"
 )
 
 func getsize(size int64) string {
@@ -31,5 +33,13 @@ func resolveAddress(addr []string) string {
 		return addr[0]
 	default:
 		panic("too many parameters")
+	}
+}
+
+func readonle(ctx *gin.Context) {
+	switch ctx.Request.Method {
+	case "GET", "HEAD", "POST":
+	default:
+		ctx.Abort()
 	}
 }

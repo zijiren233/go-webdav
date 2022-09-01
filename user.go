@@ -1,5 +1,11 @@
 package gowebdav
 
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
 type user struct {
 	name, password string
 	mode           int
@@ -35,4 +41,36 @@ func (client *client) SetUserRights(username, password string, mode int) Client 
 		v.mode = mode
 	}
 	return client
+}
+
+func (client *client) userAuth(ctx *gin.Context) {
+	if len(client.userInfo) != 0 {
+		user, pwd, ok := ctx.Request.BasicAuth()
+		if !ok {
+			ctx.Writer.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+			ctx.Writer.WriteHeader(http.StatusUnauthorized)
+			ctx.Abort()
+		}
+		v, ok := client.userInfo[user]
+		if !ok || v.password != pwd {
+			ctx.Writer.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
+			ctx.Writer.WriteHeader(http.StatusUnauthorized)
+			ctx.Abort()
+		}
+		v.userAuthentication(ctx)
+		return
+	}
+	if client.readOnly {
+		readonle(ctx)
+	}
+}
+
+func (user *user) userAuthentication(ctx *gin.Context) {
+	switch user.mode {
+	case O_RDWR:
+	case O_READONLY:
+		readonle(ctx)
+	default:
+		ctx.Abort()
+	}
 }
