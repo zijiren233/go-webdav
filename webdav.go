@@ -22,7 +22,9 @@ func NewWebdav() Server {
 	webdavserver := webdavServer{}
 	gin.SetMode(gin.ReleaseMode)
 
-	webdavserver.ginengine = gin.Default()
+	webdavserver.ginengine = gin.New()
+
+	webdavserver.ginengine.Use(Formatter(), gin.Recovery())
 
 	return &webdavserver
 }
