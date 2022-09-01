@@ -61,7 +61,11 @@ min-width: 20em;
 </style>
 </head>
 <body>`)
-	fmt.Fprintf(data, "<h1>Index of %s</h1><table>\n", path)
+	if client.pathPrefix == "" {
+		fmt.Fprintf(data, "<h1>Index of <a href=\"..\">Home</a>/%s</h1><table>\n", path2index(path))
+	} else {
+		fmt.Fprintf(data, "<h1>Index of <a href=\"%s\">Home</a>/%s</h1><table>\n", client.pathPrefix, path2index(path))
+	}
 	fmt.Fprintln(data, `<tr>
 <th class="left mw20">Name</th>
 <th class="left">Last modified</th>
