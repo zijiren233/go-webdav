@@ -73,13 +73,11 @@ func (client *client) webdavauth() gin.HandlerFunc {
 			username, pwd, ok := ctx.Request.BasicAuth()
 			if !ok {
 				authErr(ctx)
-				ctx.Abort()
 				return
 			}
 			user, ok := client.FindUser(username)
 			if !ok || !user.comparePassword(pwd) {
 				authErr(ctx)
-				ctx.Abort()
 				return
 			}
 			if user.Mode() == O_READONLY && readonle(ctx.Request.Method) {

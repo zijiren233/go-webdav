@@ -59,4 +59,5 @@ func path2index(path string) string {
 func authErr(ctx *gin.Context) {
 	ctx.Writer.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 	ctx.Writer.WriteHeader(http.StatusUnauthorized)
+	ctx.Abort()
 }
