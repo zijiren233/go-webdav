@@ -1,8 +1,6 @@
 package gowebdav
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/webdav"
 )
@@ -80,14 +78,12 @@ func (client *client) webdavauth() gin.HandlerFunc {
 				authErr(ctx)
 				return
 			}
-			if user.Mode() == O_READONLY && readonle(ctx.Request.Method) {
-				ctx.Writer.WriteHeader(http.StatusMethodNotAllowed)
-				ctx.Abort()
+			if asd(ctx.Request.Method, user.Mode()) {
+				methodNotAllowed(ctx)
 				return
 			}
-		} else if client.readOnly && readonle(ctx.Request.Method) {
-			ctx.Writer.WriteHeader(http.StatusMethodNotAllowed)
-			ctx.Abort()
+		} else if client.readOnly && asd(ctx.Request.Method, O_RDONLY) {
+			methodNotAllowed(ctx)
 			return
 		}
 	}

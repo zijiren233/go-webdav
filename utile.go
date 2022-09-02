@@ -38,13 +38,20 @@ func resolveAddress(addr []string) string {
 	}
 }
 
-func readonle(Method string) bool {
+func asd(Method string, mode mode) bool {
 	switch Method {
-	case "GET", "HEAD", "PROPFIND":
+	case "OPTIONS":
 		return false
+	case "GET", "HEAD", "PROPFIND":
+		if mode != O_RDONLY && mode != O_RDWR {
+			return true
+		}
 	default:
-		return true
+		if mode != O_WRONLY && mode != O_RDWR {
+			return true
+		}
 	}
+	return false
 }
 
 func path2index(path string) string {
@@ -59,5 +66,10 @@ func path2index(path string) string {
 func authErr(ctx *gin.Context) {
 	ctx.Writer.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 	ctx.Writer.WriteHeader(http.StatusUnauthorized)
+	ctx.Abort()
+}
+
+func methodNotAllowed(ctx *gin.Context) {
+	ctx.Writer.WriteHeader(http.StatusMethodNotAllowed)
 	ctx.Abort()
 }

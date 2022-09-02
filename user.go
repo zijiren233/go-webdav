@@ -2,6 +2,7 @@ package gowebdav
 
 import (
 	"sync"
+	"syscall"
 )
 
 type userfunc interface {
@@ -21,11 +22,12 @@ type user struct {
 	lock *sync.RWMutex
 }
 
-type mode = uint
+type mode = int
 
 const (
-	O_RDWR mode = iota
-	O_READONLY
+	O_RDWR   mode = syscall.O_RDONLY
+	O_WRONLY mode = syscall.O_WRONLY
+	O_RDONLY mode = syscall.O_RDWR
 )
 
 func (u *user) comparePassword(password string) bool {
