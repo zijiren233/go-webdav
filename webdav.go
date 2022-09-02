@@ -9,13 +9,17 @@ import (
 )
 
 type Server interface {
+	// All client path prefix levels must match
 	NewClient(pathPrefix, filePath string) Client
+	// All client path prefix levels must match
 	NewClientWithMemFS(pathPrefix string) Client
 	Run(addr ...string) error
 	RunTLS(addr string, certFile string, keyFile string) error
+	// Fill in the domain name to automatically apply for a certificate and run on port 443
 	RunAUTOTLS(domain ...string) error
+	// http -auto-> https
 	SSLRedirect(SSLHost string)
-	GetGinEngine() *gin.Engine
+	GinEngine() *gin.Engine
 }
 
 type webdavServer struct {
@@ -34,6 +38,7 @@ func NewWebdav() Server {
 	return &webdavserver
 }
 
+// All client path prefix levels must match
 func NewWebdavWithGin(engine *gin.Engine) Server {
 	webdavserver := webdavServer{}
 
@@ -52,7 +57,7 @@ func (webdavServer *webdavServer) RunTLS(addr string, certFile string, keyFile s
 	return webdavServer.ginengine.RunTLS(addr, certFile, keyFile)
 }
 
-// acme
+// acme and use port 443
 func (webdavServer *webdavServer) RunAUTOTLS(domain ...string) error {
 	return autotls.Run(webdavServer.ginengine, domain...)
 }
@@ -71,6 +76,6 @@ func (webdavServer *webdavServer) SSLRedirect(SSLHost string) {
 	})
 }
 
-func (webdavServer *webdavServer) GetGinEngine() *gin.Engine {
+func (webdavServer *webdavServer) GinEngine() *gin.Engine {
 	return webdavServer.ginengine
 }

@@ -15,7 +15,7 @@ type Client interface {
 	GlobalReadOnly()
 	UnSetReadOnly()
 
-	SetCORS(Allow_Origin, Max_Age, Allow_Methods, Allow_Headers, Allow_Credentials string)
+	SetCORS(config CORSConfig)
 
 	FS() webdav.FileSystem
 	LS() webdav.LockSystem
@@ -57,7 +57,7 @@ func (server *webdavServer) NewClientWithMemFS(pathPrefix string) Client {
 
 func (client *client) addMethod(ginengine *gin.Engine, pathPrefix string) {
 	group := ginengine.Group(pathPrefix)
-	group.Use(corsDefaule(), client.webdavauth())
+	group.Use(client.webdavauth())
 	group.Any("/*webdav", client.handleWebdav())
 	for _, v := range missingMethods {
 		group.Handle(v, "/*webdav", client.handleWebdav())
@@ -74,7 +74,7 @@ func (client *client) webdavauth() gin.HandlerFunc {
 				return
 			}
 			user, ok := client.FindUser(username)
-			if !ok || !user.comparePassword(pwd) {
+			if !ok || !user.ComparePassword(pwd) {
 				authErr(ctx)
 				return
 			}
@@ -103,8 +103,8 @@ func (client *client) UnSetReadOnly() {
 	}
 }
 
-func (client *client) SetCORS(Allow_Origin, Max_Age, Allow_Methods, Allow_Headers, Allow_Credentials string) {
-	client.group.Use(cors(Allow_Origin, Max_Age, Allow_Methods, Allow_Headers, Allow_Credentials))
+func (client *client) SetCORS(config CORSConfig) {
+	client.group.Use(cors(config))
 }
 
 func (client *client) FS() webdav.FileSystem {

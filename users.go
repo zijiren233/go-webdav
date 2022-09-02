@@ -3,10 +3,14 @@ package gowebdav
 import "sync"
 
 type usersfunc interface {
+	// Get the number of users
 	UserNum() int
+	// Find a user by username, and return false if the lookup fails
 	FindUser(username string) (userfunc, bool)
+	// Add a new user, if the user exists, return the existing user
 	AddUser(username, password string, mode mode) userfunc
-	DelUser(username, password string)
+	// Delete users
+	DelUser(username string)
 }
 
 type users struct {
@@ -47,7 +51,7 @@ func (u *users) AddUser(username, password string, mode mode) userfunc {
 	return &newuser
 }
 
-func (u *users) DelUser(username, password string) {
+func (u *users) DelUser(username string) {
 	u.lock.RLock()
 	_, ok := u.usermap[username]
 	u.lock.RUnlock()

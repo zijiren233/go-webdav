@@ -19,6 +19,7 @@ const (
 	reset   = "\033[0m"
 )
 
+// Perfection of gin logger middleware
 func Logger() gin.HandlerFunc {
 	return gin.LoggerWithFormatter(handlelogger)
 }

@@ -6,13 +6,19 @@ import (
 )
 
 type userfunc interface {
+	// Change the username of the current user
 	ChangeName(username string)
-	ChangeMode(mode mode)
+	// Change the current user's password
 	ChangePwd(password string)
-	SetInfo(username, password string, mode mode)
-	Mode() mode
+	// Change the permissions of the current user
+	ChangeMode(mode mode)
+	// Change all the information of the current user
+	ReSetInfo(username, password string, mode mode)
+	// Check if the password is correct
+	ComparePassword(password string) bool
 
-	comparePassword(password string) bool
+	Name() string
+	Mode() mode
 }
 
 type user struct {
@@ -22,7 +28,7 @@ type user struct {
 	lock *sync.RWMutex
 }
 
-type mode = int
+type mode int
 
 const (
 	O_RDWR   mode = syscall.O_RDONLY
@@ -30,10 +36,16 @@ const (
 	O_RDONLY mode = syscall.O_RDWR
 )
 
-func (u *user) comparePassword(password string) bool {
+func (u *user) ComparePassword(password string) bool {
 	u.lock.RLock()
 	defer u.lock.RUnlock()
 	return u.password == password
+}
+
+func (u *user) Name() string {
+	u.lock.RLock()
+	defer u.lock.RUnlock()
+	return u.name
 }
 
 func (u *user) Mode() mode {
@@ -60,7 +72,7 @@ func (u *user) ChangePwd(password string) {
 	u.lock.Unlock()
 }
 
-func (u *user) SetInfo(username, password string, mode mode) {
+func (u *user) ReSetInfo(username, password string, mode mode) {
 	u.lock.Lock()
 	u.name = username
 	u.password = password
