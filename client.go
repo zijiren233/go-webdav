@@ -1,8 +1,6 @@
 package gowebdav
 
 import (
-	"fmt"
-
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/webdav"
 )
@@ -14,15 +12,14 @@ var (
 )
 
 type Client interface {
-	// Global permissions
 	GlobalReadOnly()
 	UnSetReadOnly()
 
-	// System
+	SetCORS(Allow_Origin, Max_Age, Allow_Methods, Allow_Headers, Allow_Credentials string)
+
 	FS() webdav.FileSystem
 	LS() webdav.LockSystem
 
-	// User
 	usersfunc
 }
 
@@ -30,6 +27,7 @@ type client struct {
 	readOnly bool
 	usersfunc
 	fs         *webdav.Handler
+	group      *gin.RouterGroup
 	pathPrefix string
 }
 
@@ -58,10 +56,39 @@ func (server *webdavServer) NewClientWithMemFS(pathPrefix string) Client {
 }
 
 func (client *client) addMethod(ginengine *gin.Engine, pathPrefix string) {
-	relativePath := fmt.Sprintf("%s/*webdav", pathPrefix)
-	ginengine.Any(relativePath, client.handleWebdav())
+	group := ginengine.Group(pathPrefix)
+	group.Use(corsDefaule(), client.webdavauth())
+	group.Any("/*webdav", client.handleWebdav())
 	for _, v := range missingMethods {
-		ginengine.Handle(v, relativePath, client.handleWebdav())
+		group.Handle(v, "/*webdav", client.handleWebdav())
+	}
+	client.group = group
+}
+
+func (client *client) webdavauth() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		if client.UserNum() != 0 {
+			username, pwd, ok := ctx.Request.BasicAuth()
+			if !ok {
+				authErr(ctx)
+				ctx.Abort()
+				return
+			}
+			user, ok := client.FindUser(username)
+			if !ok || !user.comparePassword(pwd) {
+				authErr(ctx)
+				ctx.Abort()
+				return
+			}
+			if user.Mode() == O_READONLY && readonle(ctx.Request.Method) {
+				ctx.Abort()
+				return
+			}
+		} else if client.readOnly && readonle(ctx.Request.Method) {
+			ctx.Abort()
+			return
+		}
+		ctx.Next()
 	}
 }
 
@@ -79,6 +106,10 @@ func (client *client) UnSetReadOnly() {
 	}
 }
 
+func (client *client) SetCORS(Allow_Origin, Max_Age, Allow_Methods, Allow_Headers, Allow_Credentials string) {
+	client.group.Use(cors(Allow_Origin, Max_Age, Allow_Methods, Allow_Headers, Allow_Credentials))
+}
+
 func (client *client) FS() webdav.FileSystem {
 	return client.fs.FileSystem
 }
@@ -89,23 +120,6 @@ func (client *client) LS() webdav.LockSystem {
 
 func (client *client) handleWebdav() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if client.UserNum() != 0 {
-			username, pwd, ok := ctx.Request.BasicAuth()
-			if !ok {
-				authErr(ctx)
-				return
-			}
-			user, ok := client.FindUser(username)
-			if !ok || !user.comparePassword(pwd) {
-				authErr(ctx)
-				return
-			}
-			if user.Mode() == O_READONLY && readonle(ctx.Request.Method) {
-				return
-			}
-		} else if client.readOnly && readonle(ctx.Request.Method) {
-			return
-		}
 		if ctx.Request.Method == "GET" && client.handleDirList(client.fs.FileSystem, ctx) {
 			return
 		}

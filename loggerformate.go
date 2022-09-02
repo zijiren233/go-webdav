@@ -19,6 +19,10 @@ const (
 	reset   = "\033[0m"
 )
 
+func Logger() gin.HandlerFunc {
+	return gin.LoggerWithFormatter(handlelogger)
+}
+
 var handlelogger = func(param gin.LogFormatterParams) string {
 	var statusColor, methodColor, resetColor string
 	if param.IsOutputColor() {
@@ -39,10 +43,6 @@ var handlelogger = func(param gin.LogFormatterParams) string {
 		param.Path,
 		param.ErrorMessage,
 	)
-}
-
-func Logger() gin.HandlerFunc {
-	return gin.LoggerWithFormatter(handlelogger)
 }
 
 func methodcolor(p *gin.LogFormatterParams) string {

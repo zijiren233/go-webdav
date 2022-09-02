@@ -40,7 +40,7 @@ func resolveAddress(addr []string) string {
 
 func readonle(Method string) bool {
 	switch Method {
-	case "GET", "HEAD", "POST":
+	case "GET", "HEAD", "PROPFIND":
 		return false
 	default:
 		return true
