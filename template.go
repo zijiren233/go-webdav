@@ -16,6 +16,8 @@ const (
 	meta      = `<meta name="referrer" content="no-referrer" />`
 	listIndex = `<tr><th class="left mw20">Name</th><th class="left">Last modified</th><th>Size</th></tr><tr><th colspan="3"><hr></th></tr>`
 	homeDIr   = "<tr><td><a href=\"%s\">Home Dir</a></td><td>&nbsp;</td><td class=\"mono\" align=\"right\">[DIR]</td></tr>"
+	perDir    = `<td><a href="..">Pre Dir</a></td><td>&nbsp;</td><td class="mono" align="right">[DIR]</td></tr>`
+	fileuri   = "<tr><td><a href=\"%s\" >%s</a></td><td class=\"mono\">%s</td><td class=\"mono\" align=\"right\">%s</td></tr>"
 )
 
 func (client *client) handleDirList(fs webdav.FileSystem, ctx *gin.Context) bool {
@@ -46,15 +48,15 @@ func (client *client) generateWeb(dirs []fs.FileInfo, path string, writer io.Wri
 		fmt.Fprintf(writer, "<body><h1>Index of /<a href=\"%s\">Home</a>%s</h1><table>%s%s", client.pathPrefix, path2index(path), listIndex, fmt.Sprintf(homeDIr, client.pathPrefix))
 	}
 	if path != "/" {
-		fmt.Fprint(writer, `<td><a href="..">Pre Dir</a></td><td>&nbsp;</td><td class="mono" align="right">[DIR]</td></tr>`)
+		fmt.Fprint(writer, perDir)
 	}
 	for _, d := range dirs {
 		name := d.Name()
 		if d.IsDir() {
 			name += "/"
-			fmt.Fprintf(writer, "<tr><td><a href=\"%s\" >%s</a></td><td class=\"mono\">%s</td><td class=\"mono\" align=\"right\">[DIR]</td></tr>", name, name, d.ModTime().Format("2006/1/2 15:04:05"))
+			fmt.Fprintf(writer, fileuri, name, name, d.ModTime().Format("2006/1/2 15:04:05"), "[DIR]")
 		} else {
-			fmt.Fprintf(writer, "<tr><td><a href=\"%s\" >%s</a></td><td class=\"mono\">%s</td><td class=\"mono\" align=\"right\">%s</td></tr>", name, name, d.ModTime().Format("2006/1/2 15:04:05"), getsize(d.Size()))
+			fmt.Fprintf(writer, fileuri, name, name, d.ModTime().Format("2006/1/2 15:04:05"), getsize(d.Size()))
 		}
 	}
 	fmt.Fprint(writer, `</table></body></html>`)
