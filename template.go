@@ -13,7 +13,7 @@ import (
 
 const (
 	style     = `<style>table {border-collapse: separate;border-spacing: 1.5em 0.25em;}h1 {padding-left: 0.3em;}a {text-decoration: none;color: blue;}.left {text-align: left;}.mono {font-family: monospace;}.mw20 {min-width: 20em;}</style>`
-	meta      = `<meta name=\"referrer\" content=\"no-referrer\" />`
+	meta      = `<meta name="referrer" content="no-referrer" />`
 	listIndex = `<tr><th class="left mw20">Name</th><th class="left">Last modified</th><th>Size</th></tr><tr><th colspan="3"><hr></th></tr>`
 	homeDIr   = "<tr><td><a href=\"%s\">Home Dir</a></td><td>&nbsp;</td><td class=\"mono\" align=\"right\">[DIR]</td></tr>"
 )
