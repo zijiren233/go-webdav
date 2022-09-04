@@ -17,13 +17,12 @@ type Client interface {
 
 	SetCORS(config CORSConfig)
 
-	FS() webdav.FileSystem
-	LS() webdav.LockSystem
+	FS() *webdav.Handler
 
 	usersfunc
 }
 
-type client struct {
+type Cli struct {
 	readOnly bool
 	usersfunc
 	fs         *webdav.Handler
@@ -32,40 +31,64 @@ type client struct {
 }
 
 // All client path prefix levels must match
-func (server *webdavServer) NewClient(pathPrefix, filePath string) Client {
+func (server *webdavServer) DefaultClient(pathPrefix, filePath string) Client {
 	fs := &webdav.Handler{
 		Prefix:     pathPrefix,
 		FileSystem: webdav.Dir(filePath),
 		LockSystem: webdav.NewMemLS(),
 	}
-	client := client{pathPrefix: pathPrefix, fs: fs, usersfunc: newusers()}
-	client.addMethod(server.ginengine, pathPrefix)
+	client := Cli{pathPrefix: pathPrefix, fs: fs, usersfunc: newusers()}
+	client.addMethod(server.ginengine, pathPrefix, Defaulthandle(&client))
+	return &client
+}
+
+// Custom handler, All client path prefix levels must match
+func (server *webdavServer) Client(pathPrefix, filePath string, handlerFunc HandlerFunc) Client {
+	fs := &webdav.Handler{
+		Prefix:     pathPrefix,
+		FileSystem: webdav.Dir(filePath),
+		LockSystem: webdav.NewMemLS(),
+	}
+	client := Cli{pathPrefix: pathPrefix, fs: fs, usersfunc: newusers()}
+	client.addMethod(server.ginengine, pathPrefix, handlerFunc(&client))
 	return &client
 }
 
 // All client path prefix levels must match
-func (server *webdavServer) NewClientWithMemFS(pathPrefix string) Client {
+func (server *webdavServer) DefaultClientWithMemFS(pathPrefix string) Client {
 	fs := &webdav.Handler{
 		Prefix:     pathPrefix,
 		FileSystem: webdav.NewMemFS(),
 		LockSystem: webdav.NewMemLS(),
 	}
-	client := client{pathPrefix: pathPrefix, fs: fs, usersfunc: newusers()}
-	client.addMethod(server.ginengine, pathPrefix)
+	client := Cli{pathPrefix: pathPrefix, fs: fs, usersfunc: newusers()}
+	client.addMethod(server.ginengine, pathPrefix, Defaulthandle(&client))
 	return &client
 }
 
-func (client *client) addMethod(ginengine *gin.Engine, pathPrefix string) {
+// Custom handler, All client path prefix levels must match
+func (server *webdavServer) ClientWithMemFS(pathPrefix string, handlerFunc HandlerFunc) Client {
+	fs := &webdav.Handler{
+		Prefix:     pathPrefix,
+		FileSystem: webdav.NewMemFS(),
+		LockSystem: webdav.NewMemLS(),
+	}
+	client := Cli{pathPrefix: pathPrefix, fs: fs, usersfunc: newusers()}
+	client.addMethod(server.ginengine, pathPrefix, handlerFunc(&client))
+	return &client
+}
+
+func (client *Cli) addMethod(ginengine *gin.Engine, pathPrefix string, handlerFunc gin.HandlerFunc) {
 	group := ginengine.Group(pathPrefix)
-	group.Use(client.webdavauth())
-	group.Any("/*webdav", client.handleWebdav())
+	group.Use(client.webdavauth(), handlerFunc)
+	group.Any("/*webdav")
 	for _, v := range missingMethods {
-		group.Handle(v, "/*webdav", client.handleWebdav())
+		group.Handle(v, "/*webdav", handlerFunc)
 	}
 	client.group = group
 }
 
-func (client *client) webdavauth() gin.HandlerFunc {
+func (client *Cli) webdavauth() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		if client.UserNum() != 0 {
 			username, pwd, ok := ctx.Request.BasicAuth()
@@ -90,32 +113,30 @@ func (client *client) webdavauth() gin.HandlerFunc {
 }
 
 // It only takes effect if no user is set
-func (client *client) GlobalReadOnly() {
+func (client *Cli) GlobalReadOnly() {
 	if !client.readOnly {
 		client.readOnly = true
 	}
 }
 
 // It only takes effect if no user is set
-func (client *client) UnSetReadOnly() {
+func (client *Cli) UnSetReadOnly() {
 	if client.readOnly {
 		client.readOnly = false
 	}
 }
 
-func (client *client) SetCORS(config CORSConfig) {
+func (client *Cli) SetCORS(config CORSConfig) {
 	client.group.Use(cors(config))
 }
 
-func (client *client) FS() webdav.FileSystem {
-	return client.fs.FileSystem
+func (client *Cli) FS() *webdav.Handler {
+	return client.fs
 }
 
-func (client *client) LS() webdav.LockSystem {
-	return client.fs.LockSystem
-}
+type HandlerFunc func(*Cli) gin.HandlerFunc
 
-func (client *client) handleWebdav() gin.HandlerFunc {
+func Defaulthandle(client *Cli) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		if ctx.Request.Method == "GET" && client.handleDirList(client.fs.FileSystem, ctx) {
 			return

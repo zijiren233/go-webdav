@@ -9,7 +9,7 @@ import (
 
 func main() {
 	ser := gowebdav.NewWebdav()
-	ser.NewClient("", ".")
+	ser.DefaultClient("", ".")
 	ser.Run(":8080")
 }
 ```
@@ -25,8 +25,8 @@ import (
 
 func main() {
 	ser := gowebdav.NewWebdav()
-	ser.NewClient("/prefix1", ".")
-	c := ser.NewClient("/prefix2", "../")
+	ser.DefaultClient("/prefix1", ".")
+	c := ser.DefaultClient("/prefix2", "../")
 	c.AddUser("admin", "admin", gowebdav.O_RDWR)
 	ser.Run(":8080")
 }

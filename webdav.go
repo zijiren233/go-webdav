@@ -10,9 +10,13 @@ import (
 
 type Server interface {
 	// All client path prefix levels must match
-	NewClient(pathPrefix, filePath string) Client
+	DefaultClient(pathPrefix, filePath string) Client
 	// All client path prefix levels must match
-	NewClientWithMemFS(pathPrefix string) Client
+	Client(pathPrefix, filePath string, handlerFunc HandlerFunc) Client
+	// All client path prefix levels must match
+	DefaultClientWithMemFS(pathPrefix string) Client
+	// All client path prefix levels must match
+	ClientWithMemFS(pathPrefix string, handlerFunc HandlerFunc) Client
 	Run(addr ...string) error
 	RunTLS(addr string, certFile string, keyFile string) error
 	// Fill in the domain name to automatically apply for a certificate and run on port 443

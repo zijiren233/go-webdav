@@ -20,7 +20,7 @@ const (
 	fileuri   = "<tr><td><a href=\"%s\" >%s</a></td><td class=\"mono\">%s</td><td class=\"mono\" align=\"right\">%s</td></tr>"
 )
 
-func (client *client) handleDirList(fs webdav.FileSystem, ctx *gin.Context) bool {
+func (client *Cli) handleDirList(fs webdav.FileSystem, ctx *gin.Context) bool {
 	filePath := ctx.Params.ByName("webdav")
 	f, err := fs.OpenFile(ctx, filePath, os.O_RDONLY, 0)
 	if err != nil {
@@ -40,7 +40,7 @@ func (client *client) handleDirList(fs webdav.FileSystem, ctx *gin.Context) bool
 	return true
 }
 
-func (client *client) generateWeb(dirs []fs.FileInfo, path string, writer io.Writer) {
+func (client *Cli) generateWeb(dirs []fs.FileInfo, path string, writer io.Writer) {
 	fmt.Fprintf(writer, "<html><head>%s<title>Index of %s</title>%s</head>", meta, path, style)
 	if client.pathPrefix == "" {
 		fmt.Fprintf(writer, "<body><h1>Index of /<a href=\"/\">Home</a>%s</h1><table>%s%s", path2index(path), listIndex, fmt.Sprintf(homeDIr, "/"))
