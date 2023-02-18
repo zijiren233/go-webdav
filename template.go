@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
+	"sort"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/net/webdav"
@@ -40,7 +41,13 @@ func (client *Cli) handleDirList(fs webdav.FileSystem, ctx *gin.Context) bool {
 	return true
 }
 
-func (client *Cli) generateWeb(dirs []fs.FileInfo, path string, writer io.Writer) {
+type SortFileInfo []fs.FileInfo
+
+func (x SortFileInfo) Len() int           { return len(x) }
+func (x SortFileInfo) Less(i, j int) bool { return x[i].Name() < x[j].Name() }
+func (x SortFileInfo) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+
+func (client *Cli) generateWeb(FSInfo []fs.FileInfo, path string, writer io.Writer) {
 	fmt.Fprintf(writer, "<html><head>%s<title>Index of %s</title>%s</head>", meta, path, style)
 	if client.pathPrefix == "" {
 		fmt.Fprintf(writer, "<body><h1>Index of /<a href=\"/\">Home</a>%s</h1><table>%s%s", path2index(path), listIndex, fmt.Sprintf(homeDIr, "/"))
@@ -50,14 +57,25 @@ func (client *Cli) generateWeb(dirs []fs.FileInfo, path string, writer io.Writer
 	if path != "/" {
 		fmt.Fprint(writer, perDir)
 	}
-	for _, d := range dirs {
-		name := d.Name()
+	var dirs = []fs.FileInfo{}
+	var files = []fs.FileInfo{}
+	for _, d := range FSInfo {
 		if d.IsDir() {
-			name += "/"
-			fmt.Fprintf(writer, fileuri, name, name, d.ModTime().Format("2006/1/2 15:04:05"), "[DIR]")
+			dirs = append(dirs, d)
 		} else {
-			fmt.Fprintf(writer, fileuri, name, name, d.ModTime().Format("2006/1/2 15:04:05"), getsize(d.Size()))
+			files = append(files, d)
 		}
+	}
+	sort.Sort(SortFileInfo(dirs))
+	sort.Sort(SortFileInfo(files))
+	for _, v := range dirs {
+		name := v.Name() + "/"
+		fmt.Fprintf(writer, fileuri, name, name, v.ModTime().Format("2006/1/2 15:04:05"), "[DIR]")
+	}
+	for _, v := range files {
+		name := v.Name()
+		fmt.Fprintf(writer, fileuri, name, name, v.ModTime().Format("2006/1/2 15:04:05"), getsize(v.Size()))
+
 	}
 	fmt.Fprint(writer, `</table></body></html>`)
 }
