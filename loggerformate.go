@@ -47,8 +47,7 @@ var handlelogger = func(param gin.LogFormatterParams) string {
 }
 
 func methodcolor(p *gin.LogFormatterParams) string {
-	method := p.Method
-	switch method {
+	switch p.Method {
 	case http.MethodGet, "PROPFIND":
 		return blue
 	case http.MethodPost, "PROPPATCH":
