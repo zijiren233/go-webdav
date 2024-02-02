@@ -80,8 +80,8 @@ func (server *webdavServer) ClientWithMemFS(pathPrefix string, handlerFunc Handl
 
 func (client *Cli) addMethod(ginengine *gin.Engine, pathPrefix string, handlerFunc gin.HandlerFunc) {
 	group := ginengine.Group(pathPrefix)
-	group.Use(client.webdavauth(), handlerFunc)
-	group.Any("/*webdav")
+	group.Use(client.webdavauth())
+	group.Any("/*webdav", handlerFunc)
 	for _, v := range missingMethods {
 		group.Handle(v, "/*webdav", handlerFunc)
 	}
